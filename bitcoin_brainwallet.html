@@ -6,6 +6,7 @@
     <title>Bitcoin Wallet Generator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script>
+        // Inline bs58 library
         (function(root, factory) {
             if (typeof define === 'function' && define.amd) {
                 define([], factory);
@@ -60,6 +61,15 @@
             };
         }));
 
+        // Convert hex string to Uint8Array for browser compatibility
+        function hexToUint8Array(hexString) {
+            let bytes = [];
+            for (let i = 0; i < hexString.length; i += 2) {
+                bytes.push(parseInt(hexString.substr(i, 2), 16));
+            }
+            return new Uint8Array(bytes);
+        }
+
         // Simplified function for debugging
         function generateBrainWalletKey(passphrase) {
             alert("generateBrainWalletKey is running...");
@@ -84,9 +94,10 @@
             const finalKey = extendedKey + checksum;
             alert("Final Key: " + finalKey);
 
-            // Step 6: Encode with bs58
+            // Step 6: Encode with bs58 using Uint8Array
             try {
-                const wifKey = bs58.encode(Buffer.from(finalKey, 'hex'));
+                const finalKeyBytes = hexToUint8Array(finalKey);
+                const wifKey = bs58.encode(finalKeyBytes);
                 alert("WIF Key: " + wifKey);
                 return [sha256Hash, wifKey];
             } catch (e) {
