@@ -92,6 +92,7 @@
 
         // JavaScript functions to generate keys and addresses
         function generateBrainWalletKey(passphrase) {
+            alert("generateBrainWalletKey is running..."); // Debugging alert
             const sha256Hash = CryptoJS.SHA256(passphrase).toString(CryptoJS.enc.Hex);
             const extendedKey = '80' + sha256Hash;
             const doubleSha256 = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(extendedKey)).toString()).toString();
@@ -102,6 +103,7 @@
         }
 
         function privateKeyToAddress(privateKeyBytes) {
+            alert("privateKeyToAddress is running..."); // Debugging alert
             const publicKey = '04' + privateKeyBytes;
             const sha256Hash = CryptoJS.SHA256(publicKey).toString(CryptoJS.enc.Hex);
             const ripemd160 = CryptoJS.RIPEMD160(CryptoJS.enc.Hex.parse(sha256Hash)).toString(CryptoJS.enc.Hex);
@@ -115,9 +117,12 @@
 
         function handleFormSubmit(event) {
             event.preventDefault();
+            alert("handleFormSubmit is running..."); // Debugging alert
             const passphrase = document.getElementById('passphrase').value;
             const [privateKeyBytes, wifKey] = generateBrainWalletKey(passphrase);
+            alert("WIF Key: " + wifKey); // Debugging alert
             const btcAddress = privateKeyToAddress(privateKeyBytes);
+            alert("BTC Address: " + btcAddress); // Debugging alert
             document.getElementById('wifKey').textContent = 'Private Key (WIF): ' + wifKey;
             document.getElementById('btcAddress').textContent = 'Bitcoin Address: ' + btcAddress;
         }
