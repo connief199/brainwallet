@@ -6,7 +6,6 @@
     <title>Bitcoin Wallet Generator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script>
-        // Inline bs58 library
         (function(root, factory) {
             if (typeof define === 'function' && define.amd) {
                 define([], factory);
@@ -56,75 +55,53 @@
                 return string;
             }
 
-            function decode(string) {
-                if (string.length === 0) return [];
-
-                let bytes = [0];
-                for (let i = 0; i < string.length; i++) {
-                    let value = ALPHABET_MAP[string[i]];
-                    if (value === undefined) throw new Error('Non-base58 character');
-
-                    let carry = value;
-                    for (let j = 0; j < bytes.length; ++j) {
-                        carry += bytes[j] * BASE;
-                        bytes[j] = carry & 0xff;
-                        carry >>= 8;
-                    }
-
-                    while (carry > 0) {
-                        bytes.push(carry & 0xff);
-                        carry >>= 8;
-                    }
-                }
-
-                for (let k = 0; string[k] === LEADER && k < string.length - 1; ++k) {
-                    bytes.push(0);
-                }
-
-                return bytes.reverse();
-            }
-
             return {
-                encode: encode,
-                decode: decode
+                encode: encode
             };
         }));
 
-        // JavaScript functions to generate keys and addresses
+        // Simplified function for debugging
         function generateBrainWalletKey(passphrase) {
-            alert("generateBrainWalletKey is running..."); // Debugging alert
-            const sha256Hash = CryptoJS.SHA256(passphrase).toString(CryptoJS.enc.Hex);
-            const extendedKey = '80' + sha256Hash;
-            const doubleSha256 = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(extendedKey)).toString()).toString();
-            const checksum = doubleSha256.slice(0, 8);
-            const finalKey = extendedKey + checksum;
-            const wifKey = bs58.encode(Buffer.from(finalKey, 'hex'));
-            return [sha256Hash, wifKey];
-        }
+            alert("generateBrainWalletKey is running...");
 
-        function privateKeyToAddress(privateKeyBytes) {
-            alert("privateKeyToAddress is running..."); // Debugging alert
-            const publicKey = '04' + privateKeyBytes;
-            const sha256Hash = CryptoJS.SHA256(publicKey).toString(CryptoJS.enc.Hex);
-            const ripemd160 = CryptoJS.RIPEMD160(CryptoJS.enc.Hex.parse(sha256Hash)).toString(CryptoJS.enc.Hex);
-            const mainnetAddress = '00' + ripemd160;
-            const doubleSha256 = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(mainnetAddress)).toString()).toString();
+            // Step 1: Generate SHA256 Hash
+            const sha256Hash = CryptoJS.SHA256(passphrase).toString(CryptoJS.enc.Hex);
+            alert("SHA256 Hash: " + sha256Hash);
+
+            // Step 2: Create Extended Key
+            const extendedKey = '80' + sha256Hash;
+            alert("Extended Key: " + extendedKey);
+
+            // Step 3: Double SHA256
+            const doubleSha256 = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(extendedKey)).toString()).toString();
+            alert("Double SHA256: " + doubleSha256);
+
+            // Step 4: Create Checksum
             const checksum = doubleSha256.slice(0, 8);
-            const finalAddress = mainnetAddress + checksum;
-            const btcAddress = bs58.encode(Buffer.from(finalAddress, 'hex'));
-            return btcAddress;
+            alert("Checksum: " + checksum);
+
+            // Step 5: Create Final Key
+            const finalKey = extendedKey + checksum;
+            alert("Final Key: " + finalKey);
+
+            // Step 6: Encode with bs58
+            try {
+                const wifKey = bs58.encode(Buffer.from(finalKey, 'hex'));
+                alert("WIF Key: " + wifKey);
+                return [sha256Hash, wifKey];
+            } catch (e) {
+                alert("Error during encoding: " + e.message);
+            }
         }
 
         function handleFormSubmit(event) {
             event.preventDefault();
-            alert("handleFormSubmit is running..."); // Debugging alert
+            alert("handleFormSubmit is running...");
             const passphrase = document.getElementById('passphrase').value;
             const [privateKeyBytes, wifKey] = generateBrainWalletKey(passphrase);
-            alert("WIF Key: " + wifKey); // Debugging alert
-            const btcAddress = privateKeyToAddress(privateKeyBytes);
-            alert("BTC Address: " + btcAddress); // Debugging alert
-            document.getElementById('wifKey').textContent = 'Private Key (WIF): ' + wifKey;
-            document.getElementById('btcAddress').textContent = 'Bitcoin Address: ' + btcAddress;
+            if (wifKey) {
+                document.getElementById('wifKey').textContent = 'Private Key (WIF): ' + wifKey;
+            }
         }
     </script>
 </head>
@@ -136,6 +113,5 @@
         <button type="submit">Generate</button>
     </form>
     <p id="wifKey"></p>
-    <p id="btcAddress"></p>
 </body>
 </html>
