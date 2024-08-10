@@ -70,7 +70,7 @@
             return new Uint8Array(bytes);
         }
 
-        // Simplified function for debugging
+        // Corrected function for generating Brain Wallet key
         function generateBrainWalletKey(passphrase) {
             alert("generateBrainWalletKey is running...");
 
@@ -86,7 +86,7 @@
             const doubleSha256 = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(extendedKey)).toString()).toString();
             alert("Double SHA256: " + doubleSha256);
 
-            // Step 4: Create Checksum
+            // Step 4: Create Checksum (first 4 bytes)
             const checksum = doubleSha256.slice(0, 8);
             alert("Checksum: " + checksum);
 
