@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Wallet Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bs58/4.0.1/bs58.min.js"></script>
+    <script>
+        // Function to generate Bitcoin private key (WIF) and address from passphrase
+        function generateBrainWalletKey(passphrase) {
+            // Step 1: Create a SHA-256 hash of the passphrase
+            const sha256Hash = CryptoJS.SHA256(passphrase).toString(CryptoJS.enc.Hex);
+
+            // Step 2: Convert the hash to bytes
+            const privateKeyBytes = CryptoJS.enc.Hex.parse(sha256Hash).toString(CryptoJS.enc.Utf8);
+
+            // Step 3: Convert the bytes to a WIF (Wallet Import Format) key using Base58 encoding
+            const extendedKey = '80' + sha256Hash; // Prepend 0x80 byte for mainnet private key
+            const extendedKeyBytes = CryptoJS.enc.Hex.parse(extendedKey);
+
+            // Perform double SHA-256 hash on the extended key
+            const doubleSha256 = CryptoJS.SHA256(CryptoJS.SHA256(extendedKeyBytes).toString()).toString(CryptoJS.enc.Hex);
+
+            // Add the first 4 bytes of the double hash as a checksum
+            const checksum = doubleSha256.slice(0, 8);
+
+            // Combine the extended key and checksum
+            const finalKey = extendedKey + checksum;
+
+            // Encode the result using Base58
+            const wifKey = bs58.encode(Buffer.from(finalKey, 'hex'));
+
+            return [privateKeyBytes, wifKey];
+        }
+
+        function privateKeyToAddress(privateKeyBytes) {
+            // Use the SECP256k1 curve for Bitcoin
+            const ecdsa = window.ecdsa;
+
+            // Get the public key in uncompressed format
+            const publicKey = '04' + privateKeyBytes;
+
+            // Perform SHA-256 hash on the public key
+            const sha256Hash = CryptoJS.SHA256(publicKey).toString(CryptoJS.enc.Hex);
+
+            // Perform RIPEMD-160 hash on the SHA-256 hash using CryptoJS
+            const ripemd160 = CryptoJS.RIPEMD160(CryptoJS.enc.Hex.parse(sha256Hash)).toString(CryptoJS.enc.Hex);
+
+            // Prepend 0x00 byte for mainnet address
+            const mainnetAddress = '00' + ripemd160;
+
+            // Perform double SHA-256 hash on the mainnet address
+            const doubleSha256 = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(mainnetAddress).toString())).toString(CryptoJS.enc.Hex);
+
+            // Add the first 4 bytes of the double hash as a checksum
+            const checksum = doubleSha256.slice(0, 8);
+
+            // Combine the mainnet address and checksum
+            const finalAddress = mainnetAddress + checksum;
+
+            // Encode the result using Base58
+            const btcAddress = bs58.encode(Buffer.from(finalAddress, 'hex'));
+
+            return btcAddress;
+        }
+
+        // Function to handle the form submission
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const passphrase = document.getElementById('passphrase').value;
+            const [privateKeyBytes, wifKey] = generateBrainWalletKey(passphrase);
+            const btcAddress = privateKeyToAddress(privateKeyBytes);
+            document.getElementById('wifKey').textContent = 'Private Key (WIF): ' + wifKey;
+            document.getElementById('btcAddress').textContent = 'Bitcoin Address: ' + btcAddress;
+        }
+    </script>
+</head>
+<body>
+    <h1>Bitcoin Wallet Generator</h1>
+    <form onsubmit="handleFormSubmit(event)">
+        <label for="passphrase">Enter your passphrase:</label>
+        <input type="text" id="passphrase" name="passphrase" required>
+        <button type="submit">Generate</button>
+    </form>
+    <p id="wifKey"></p>
+    <p id="btcAddress"></p>
+</body>
+</html>
