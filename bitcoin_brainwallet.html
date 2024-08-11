@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Wallet Generator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script>
         // Inline bs58 library
         (function(root, factory) {
@@ -61,55 +60,74 @@
             };
         }));
 
-        // Convert hex string to Uint8Array for browser compatibility
-        function hexToUint8Array(hexString) {
-            let bytes = [];
-            for (let i = 0; i < hexString.length; i += 2) {
-                bytes.push(parseInt(hexString.substr(i, 2), 16));
-            }
-            return new Uint8Array(bytes);
+        // Utility functions
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            return Array.from(new Uint8Array(hashBuffer));
         }
 
-        // Corrected function for generating Brain Wallet key
-        function generateBrainWalletKey(passphrase) {
-            alert("generateBrainWalletKey is running...");
+        function bytesToHex(bytes) {
+            return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function hexToBytes(hex) {
+            const bytes = [];
+            for (let c = 0; c < hex.length; c += 2) {
+                bytes.push(parseInt(hex.substr(c, 2), 16));
+            }
+            return bytes;
+        }
+
+        function concatUint8Arrays(arrays) {
+            let totalLength = arrays.reduce((acc, value) => acc + value.length, 0);
+            let result = new Uint8Array(totalLength);
+            let length = 0;
+            for (let array of arrays) {
+                result.set(array, length);
+                length += array.length;
+            }
+            return result;
+        }
+
+        async function generateBrainWalletKey(passphrase) {
+            alert("Generating Bitcoin Wallet...");
 
             // Step 1: Generate SHA256 Hash
-            const sha256Hash = CryptoJS.SHA256(passphrase).toString(CryptoJS.enc.Hex);
-            alert("SHA256 Hash: " + sha256Hash);
+            const sha256HashBytes = await sha256(passphrase);
+            const sha256HashHex = bytesToHex(sha256HashBytes);
+            alert("SHA256 Hash: " + sha256HashHex);
 
-            // Step 2: Create Extended Key
-            const extendedKey = '80' + sha256Hash;
-            alert("Extended Key: " + extendedKey);
+            // Step 2: Create Extended Key (add 0x80 prefix)
+            const extendedKeyHex = '80' + sha256HashHex;
+            const extendedKeyBytes = hexToBytes(extendedKeyHex);
+            alert("Extended Key: " + extendedKeyHex);
 
-            // Step 3: Double SHA256
-            const doubleSha256 = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(extendedKey)).toString()).toString();
-            alert("Double SHA256: " + doubleSha256);
+            // Step 3: Double SHA256 on the Extended Key
+            const doubleSha256HashBytes = await sha256(await sha256(extendedKeyBytes));
+            const doubleSha256HashHex = bytesToHex(doubleSha256HashBytes);
+            alert("Double SHA256: " + doubleSha256HashHex);
 
-            // Step 4: Create Checksum (first 4 bytes)
-            const checksum = doubleSha256.slice(0, 8);
-            alert("Checksum: " + checksum);
+            // Step 4: Create Checksum (first 4 bytes of Double SHA256)
+            const checksum = doubleSha256HashBytes.slice(0, 4);
+            const checksumHex = bytesToHex(checksum);
+            alert("Checksum: " + checksumHex);
 
-            // Step 5: Create Final Key
-            const finalKey = extendedKey + checksum;
-            alert("Final Key: " + finalKey);
+            // Step 5: Create Final Key (Extended Key + Checksum)
+            const finalKeyBytes = concatUint8Arrays([extendedKeyBytes, checksum]);
+            alert("Final Key: " + bytesToHex(finalKeyBytes));
 
-            // Step 6: Encode with bs58 using Uint8Array
-            try {
-                const finalKeyBytes = hexToUint8Array(finalKey);
-                const wifKey = bs58.encode(finalKeyBytes);
-                alert("WIF Key: " + wifKey);
-                return [sha256Hash, wifKey];
-            } catch (e) {
-                alert("Error during encoding: " + e.message);
-            }
+            // Step 6: Encode Final Key with bs58
+            const wifKey = bs58.encode(finalKeyBytes);
+            alert("WIF Key: " + wifKey);
+
+            return wifKey;
         }
 
-        function handleFormSubmit(event) {
+        async function handleFormSubmit(event) {
             event.preventDefault();
-            alert("handleFormSubmit is running...");
             const passphrase = document.getElementById('passphrase').value;
-            const [privateKeyBytes, wifKey] = generateBrainWalletKey(passphrase);
+            const wifKey = await generateBrainWalletKey(passphrase);
             if (wifKey) {
                 document.getElementById('wifKey').textContent = 'Private Key (WIF): ' + wifKey;
             }
