@@ -4,8 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Brain Wallet Generator</title>
-    <script src="https://cdn.jsdelivr.net/npm/bs58@4.0.1/index.min.js"></script>
     <script>
+        // Embedding the bs58 library directly in the script
+        (function(root) {
+            function base58Encode(buffer) {
+                const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+                let digits = [0];
+                for (let i = 0; i < buffer.length; i++) {
+                    for (let j = 0, carry = buffer[i]; j < digits.length; j++) {
+                        carry += digits[j] << 8;
+                        digits[j] = carry % 58;
+                        carry = (carry / 58) | 0;
+                    }
+                    while (carry) {
+                        digits.push(carry % 58);
+                        carry = (carry / 58) | 0;
+                    }
+                }
+                let string = '';
+                for (let k = 0; buffer[k] === 0 && k < buffer.length - 1; k++) {
+                    string += '1';
+                }
+                for (let q = digits.length - 1; q >= 0; q--) {
+                    string += alphabet[digits[q]];
+                }
+                return string;
+            }
+            root.bs58 = { encode: base58Encode };
+        })(this);
+
         async function sha256(message) {
             try {
                 const msgBuffer = new TextEncoder().encode(message);
