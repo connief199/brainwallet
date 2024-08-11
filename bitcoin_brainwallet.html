@@ -9,15 +9,10 @@
         (function(root) {
             function base58Encode(buffer) {
                 const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-                const alphabetMap = {};
-                for (let i = 0; i < alphabet.length; i++) {
-                    alphabetMap[alphabet[i]] = i;
-                }
-
-                let digits = [0];
+                const digits = [0];
                 for (let i = 0; i < buffer.length; i++) {
                     let carry = buffer[i];
-                    for (let j = 0; j < digits.length; ++j) {
+                    for (let j = 0; j < digits.length; j++) {
                         carry += digits[j] << 8;
                         digits[j] = carry % 58;
                         carry = (carry / 58) | 0;
@@ -27,7 +22,6 @@
                         carry = (carry / 58) | 0;
                     }
                 }
-
                 let string = '';
                 for (let k = 0; buffer[k] === 0 && k < buffer.length - 1; k++) {
                     string += '1';
@@ -41,14 +35,9 @@
         })(this);
 
         async function sha256(message) {
-            try {
-                const msgBuffer = new TextEncoder().encode(message);
-                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-                return new Uint8Array(hashBuffer);
-            } catch (error) {
-                displayMessage("SHA256 Error: " + error, 'error');
-                throw error;
-            }
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            return new Uint8Array(hashBuffer);
         }
 
         function bytesToHex(bytes) {
@@ -91,7 +80,7 @@
 
                 // Step 4: Take the first 4 bytes of the second SHA256 as the checksum
                 const checksum = doubleSha256.slice(0, 4);
-                displayMessage("Checksum: " + bytesToHex(checksum));
+                displayMessage("Checksum (first 4 bytes): " + bytesToHex(checksum));
 
                 // Step 5: Append the checksum to the extended key
                 const finalKey = concatUint8Arrays(extendedKey, checksum);
