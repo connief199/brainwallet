@@ -8,7 +8,6 @@
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
     <script>
-        // Base58 encoding function
         (function(root) {
             const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
             const base = BigInt(58);
@@ -23,7 +22,6 @@
                     value = value / base;
                 }
 
-                // Handle leading zeros
                 for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
                     result = '1' + result;
                 }
@@ -34,26 +32,22 @@
             root.bs58 = { encode: base58Encode };
         })(this);
 
-        // Synchronous SHA-256 using CryptoJS
-        function sha256Sync(buffer) {
+        function sha256(buffer) {
             const wordArray = CryptoJS.lib.WordArray.create(buffer);
             const hash = CryptoJS.SHA256(wordArray);
             return Uint8Array.from(CryptoJS.enc.Hex.parse(hash.toString()).toString(CryptoJS.enc.Latin1), c => c.charCodeAt(0));
         }
 
-        // Synchronous RIPEMD-160 using CryptoJS
-        function ripemd160Sync(buffer) {
+        function ripemd160(buffer) {
             const wordArray = CryptoJS.lib.WordArray.create(buffer);
             const hash = CryptoJS.RIPEMD160(wordArray);
             return Uint8Array.from(CryptoJS.enc.Hex.parse(hash.toString()).toString(CryptoJS.enc.Latin1), c => c.charCodeAt(0));
         }
 
-        // Convert Uint8Array to hexadecimal string
         function bytesToHex(bytes) {
             return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        // Concatenate multiple Uint8Arrays
         function concatUint8Arrays(...arrays) {
             let totalLength = arrays.reduce((acc, array) => acc + array.length, 0);
             let result = new Uint8Array(totalLength);
@@ -65,78 +59,35 @@
             return result;
         }
 
-        function displayMessage(message, type = 'info') {
-            const messageElement = document.createElement('p');
-            messageElement.textContent = message;
-            messageElement.style.color = (type === 'error') ? 'red' : 'black';
-            document.getElementById('debugOutput').appendChild(messageElement);
-        }
-
         function generateBitcoinAddress(publicKey) {
-            // Step 1: Perform SHA256 on the public key
-            const sha256Hash = sha256Sync(publicKey);
-
-            // Step 2: Perform RIPEMD-160 on the SHA256 hash
-            const ripemd160Hash = ripemd160Sync(sha256Hash);
-
-            // Step 3: Add 0x00 prefix (for mainnet Bitcoin addresses)
+            const sha256Hash = sha256(publicKey);
+            const ripemd160Hash = ripemd160(sha256Hash);
             const extendedRipemd160 = concatUint8Arrays(new Uint8Array([0x00]), ripemd160Hash);
-
-            // Step 4: Double SHA256 on the result
-            const doubleSha256 = sha256Sync(sha256Sync(extendedRipemd160));
-
-            // Step 5: Take the first 4 bytes as checksum
+            const doubleSha256 = sha256(sha256(extendedRipemd160));
             const checksum = doubleSha256.slice(0, 4);
-
-            // Step 6: Append checksum to extended RIPEMD-160 hash
             const finalAddress = concatUint8Arrays(extendedRipemd160, checksum);
-
-            // Step 7: Base58 encode the result to get the Bitcoin address
             return bs58.encode(finalAddress);
         }
 
         function generateBrainWalletKey(passphrase) {
             try {
-                displayMessage("Passphrase: " + passphrase);
-
-                // Step 1: Generate SHA256 Hash of the passphrase
                 const passphraseBuffer = new TextEncoder().encode(passphrase);
-                const sha256Hash = sha256Sync(passphraseBuffer);
-                displayMessage("SHA256 Hash: " + bytesToHex(sha256Hash));
+                const sha256Hash = sha256(passphraseBuffer);
 
-                // Step 2: Generate public key using elliptic library
                 const ec = new elliptic.ec('secp256k1');
                 const keyPair = ec.keyFromPrivate(sha256Hash);
                 const publicKey = keyPair.getPublic(true, 'array');
-                displayMessage("Public Key: " + bytesToHex(publicKey));
 
-                // Step 3: Generate Bitcoin Address from the public key
                 const bitcoinAddress = generateBitcoinAddress(publicKey);
-                displayMessage("Bitcoin Address: " + bitcoinAddress);
 
-                // Step 4: Add 0x80 Prefix to the SHA256 Hash
                 const extendedKey = concatUint8Arrays(new Uint8Array([0x80]), sha256Hash);
-                displayMessage("Extended Key (with 0x80): " + bytesToHex(extendedKey));
-
-                // Step 5: Perform Double SHA256 on the Extended Key
-                const doubleSha256 = sha256Sync(sha256Sync(extendedKey));
-                displayMessage("Double SHA256 Hash: " + bytesToHex(doubleSha256));
-
-                // Step 6: Take the first 4 bytes of the second SHA256 as the checksum
+                const doubleSha256 = sha256(sha256(extendedKey));
                 const checksum = doubleSha256.slice(0, 4);
-                displayMessage("Checksum (first 4 bytes): " + bytesToHex(checksum));
-
-                // Step 7: Append the checksum to the extended key
                 const finalKey = concatUint8Arrays(extendedKey, checksum);
-                displayMessage("Final Key (with Checksum): " + bytesToHex(finalKey));
-
-                // Step 8: Encode the final key using Base58
                 const wifKey = bs58.encode(finalKey);
-                displayMessage("WIF Key: " + wifKey);
 
                 return { wifKey, bitcoinAddress };
             } catch (error) {
-                displayMessage("Error generating wallet key: " + error, 'error');
                 return null;
             }
         }
@@ -145,9 +96,6 @@
             event.preventDefault();
             document.getElementById('wifKey').textContent = 'Generating...';
             document.getElementById('bitcoinAddress').textContent = '';
-            document.getElementById('debugOutput').innerHTML = '';  // Clear previous debug output
-            document.getElementById('wifQrCode').innerHTML = '';    // Clear previous QR codes
-            document.getElementById('addressQrCode').innerHTML = '';
 
             const passphrase = document.getElementById('passphrase').value;
             const result = generateBrainWalletKey(passphrase);
@@ -157,7 +105,6 @@
                 document.getElementById('wifKey').textContent = 'Private Key (WIF): ' + wifKey;
                 document.getElementById('bitcoinAddress').textContent = 'Bitcoin Address: ' + bitcoinAddress;
 
-                // Generate QR Codes
                 new QRCode(document.getElementById('wifQrCode'), wifKey);
                 new QRCode(document.getElementById('addressQrCode'), bitcoinAddress);
             } else {
@@ -177,6 +124,5 @@
     <p id="bitcoinAddress"></p>
     <div id="wifQrCode"></div>
     <div id="addressQrCode"></div>
-    <div id="debugOutput"></div>
 </body>
 </html>
