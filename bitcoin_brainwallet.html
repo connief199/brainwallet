@@ -8,14 +8,16 @@
         // Base58 encoding function
         (function(root) {
             const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+            const base = BigInt(58);
+
             function base58Encode(buffer) {
                 let result = '';
                 let value = BigInt('0x' + Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join(''));
 
                 while (value > 0) {
-                    const mod = value % 58n;
+                    const mod = value % base;
                     result = alphabet[Number(mod)] + result;
-                    value = value / 58n;
+                    value = value / base;
                 }
 
                 // Handle leading zeros
@@ -25,12 +27,12 @@
 
                 return result;
             }
+
             root.bs58 = { encode: base58Encode };
         })(this);
 
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        async function sha256(buffer) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
             return new Uint8Array(hashBuffer);
         }
 
@@ -60,8 +62,9 @@
             try {
                 displayMessage("Passphrase: " + passphrase);
 
-                // Step 1: Generate SHA256 Hash
-                const sha256Hash = await sha256(passphrase);
+                // Step 1: Generate SHA256 Hash of the passphrase
+                const passphraseBuffer = new TextEncoder().encode(passphrase);
+                const sha256Hash = await sha256(passphraseBuffer);
                 displayMessage("SHA256 Hash: " + bytesToHex(sha256Hash));
 
                 // Step 2: Add 0x80 Prefix to the SHA256 Hash
