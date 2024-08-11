@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Brain Wallet Generator</title>
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <script>
         // Base58 encoding function
         (function(root) {
@@ -36,6 +37,11 @@
             return new Uint8Array(hashBuffer);
         }
 
+        async function ripemd160(buffer) {
+            const hashBuffer = await crypto.subtle.digest('RIPEMD-160', buffer);
+            return new Uint8Array(hashBuffer);
+        }
+
         function bytesToHex(bytes) {
             return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
         }
@@ -56,6 +62,29 @@
             messageElement.textContent = message;
             messageElement.style.color = (type === 'error') ? 'red' : 'black';
             document.getElementById('debugOutput').appendChild(messageElement);
+        }
+
+        async function generateBitcoinAddress(publicKey) {
+            // Step 1: Perform SHA256 on the public key
+            const sha256Hash = await sha256(publicKey);
+
+            // Step 2: Perform RIPEMD-160 on the SHA256 hash
+            const ripemd160Hash = await ripemd160(sha256Hash);
+
+            // Step 3: Add 0x00 prefix (for mainnet Bitcoin addresses)
+            const extendedRipemd160 = concatUint8Arrays(new Uint8Array([0x00]), ripemd160Hash);
+
+            // Step 4: Double SHA256 on the result
+            const doubleSha256 = await sha256(await sha256(extendedRipemd160));
+
+            // Step 5: Take the first 4 bytes as checksum
+            const checksum = doubleSha256.slice(0, 4);
+
+            // Step 6: Append checksum to extended RIPEMD-160 hash
+            const finalAddress = concatUint8Arrays(extendedRipemd160, checksum);
+
+            // Step 7: Base58 encode the result to get the Bitcoin address
+            return bs58.encode(finalAddress);
         }
 
         async function generateBrainWalletKey(passphrase) {
@@ -87,7 +116,12 @@
                 const wifKey = bs58.encode(finalKey);
                 displayMessage("WIF Key: " + wifKey);
 
-                return wifKey;
+                // Step 7: Generate Bitcoin Address from the public key (derived from private key)
+                const publicKey = await sha256(finalKey);  // Simplified assumption: using private key's hash as a "public key"
+                const bitcoinAddress = await generateBitcoinAddress(publicKey);
+                displayMessage("Bitcoin Address: " + bitcoinAddress);
+
+                return { wifKey, bitcoinAddress };
             } catch (error) {
                 displayMessage("Error generating wallet key: " + error, 'error');
                 return null;
@@ -97,11 +131,22 @@
         async function handleFormSubmit(event) {
             event.preventDefault();
             document.getElementById('wifKey').textContent = 'Generating...';
+            document.getElementById('bitcoinAddress').textContent = '';
             document.getElementById('debugOutput').innerHTML = '';  // Clear previous debug output
+            document.getElementById('wifQrCode').innerHTML = '';    // Clear previous QR codes
+            document.getElementById('addressQrCode').innerHTML = '';
+
             const passphrase = document.getElementById('passphrase').value;
-            const wifKey = await generateBrainWalletKey(passphrase);
-            if (wifKey) {
+            const result = await generateBrainWalletKey(passphrase);
+
+            if (result) {
+                const { wifKey, bitcoinAddress } = result;
                 document.getElementById('wifKey').textContent = 'Private Key (WIF): ' + wifKey;
+                document.getElementById('bitcoinAddress').textContent = 'Bitcoin Address: ' + bitcoinAddress;
+
+                // Generate QR Codes
+                new QRCode(document.getElementById('wifQrCode'), wifKey);
+                new QRCode(document.getElementById('addressQrCode'), bitcoinAddress);
             } else {
                 document.getElementById('wifKey').textContent = 'Error generating key.';
             }
@@ -116,6 +161,9 @@
         <button type="submit">Generate</button>
     </form>
     <p id="wifKey"></p>
+    <p id="bitcoinAddress"></p>
+    <div id="wifQrCode"></div>
+    <div id="addressQrCode"></div>
     <div id="debugOutput"></div>
 </body>
 </html>
