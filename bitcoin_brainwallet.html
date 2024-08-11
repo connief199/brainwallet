@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Brain Wallet Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <script>
         // Base58 encoding function
@@ -37,9 +38,10 @@
             return new Uint8Array(hashBuffer);
         }
 
-        async function ripemd160(buffer) {
-            const hashBuffer = await crypto.subtle.digest('RIPEMD-160', buffer);
-            return new Uint8Array(hashBuffer);
+        function ripemd160(buffer) {
+            const wordArray = CryptoJS.lib.WordArray.create(buffer);
+            const hash = CryptoJS.RIPEMD160(wordArray);
+            return Uint8Array.from(CryptoJS.enc.Hex.parse(hash.toString()).toString(CryptoJS.enc.Latin1), c => c.charCodeAt(0));
         }
 
         function bytesToHex(bytes) {
@@ -69,7 +71,7 @@
             const sha256Hash = await sha256(publicKey);
 
             // Step 2: Perform RIPEMD-160 on the SHA256 hash
-            const ripemd160Hash = await ripemd160(sha256Hash);
+            const ripemd160Hash = ripemd160(sha256Hash);
 
             // Step 3: Add 0x00 prefix (for mainnet Bitcoin addresses)
             const extendedRipemd160 = concatUint8Arrays(new Uint8Array([0x00]), ripemd160Hash);
