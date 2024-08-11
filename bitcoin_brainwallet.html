@@ -5,31 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Brain Wallet Generator</title>
     <script>
-        // Simplified and Corrected bs58 encoding function
+        // Base58 encoding function using a more robust approach
         (function(root) {
             function base58Encode(buffer) {
                 const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-                const digits = [0];
-                for (let i = 0; i < buffer.length; i++) {
-                    let carry = buffer[i];
-                    for (let j = 0; j < digits.length; j++) {
-                        carry += digits[j] << 8;
-                        digits[j] = carry % 58;
-                        carry = (carry / 58) | 0;
-                    }
-                    while (carry) {
-                        digits.push(carry % 58);
-                        carry = (carry / 58) | 0;
-                    }
+                const base = BigInt(58);
+                let result = '';
+                let value = BigInt('0x' + buffer.toString('hex'));
+
+                while (value > 0) {
+                    const mod = value % base;
+                    result = alphabet[mod] + result;
+                    value = value / base;
                 }
-                let string = '';
-                for (let k = 0; buffer[k] === 0 && k < buffer.length - 1; k++) {
-                    string += '1';
+
+                for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
+                    result = '1' + result;
                 }
-                for (let q = digits.length - 1; q >= 0; q--) {
-                    string += alphabet[digits[q]];
-                }
-                return string;
+
+                return result;
             }
             root.bs58 = { encode: base58Encode };
         })(this);
@@ -42,6 +36,14 @@
 
         function bytesToHex(bytes) {
             return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function hexToBytes(hex) {
+            let bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+            }
+            return bytes;
         }
 
         function concatUint8Arrays(...arrays) {
