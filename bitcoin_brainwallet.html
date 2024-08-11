@@ -90,33 +90,38 @@
         }
 
         async function generateBrainWalletKey(passphrase) {
-            console.log("Generating Bitcoin Wallet...");
+            try {
+                console.log("Generating Bitcoin Wallet...");
 
-            // Step 1: Generate SHA256 Hash
-            const sha256HashBytes = await sha256(passphrase);
-            console.log("SHA256 Hash: ", bytesToHex(sha256HashBytes));
+                // Step 1: Generate SHA256 Hash
+                const sha256HashBytes = await sha256(passphrase);
+                console.log("SHA256 Hash: ", bytesToHex(sha256HashBytes));
 
-            // Step 2: Create Extended Key (add 0x80 prefix)
-            const extendedKeyBytes = [0x80].concat(sha256HashBytes);
-            console.log("Extended Key: ", bytesToHex(extendedKeyBytes));
+                // Step 2: Create Extended Key (add 0x80 prefix)
+                const extendedKeyBytes = [0x80].concat(sha256HashBytes);
+                console.log("Extended Key: ", bytesToHex(extendedKeyBytes));
 
-            // Step 3: Double SHA256 on the Extended Key
-            const doubleSha256HashBytes = await sha256(await sha256(new Uint8Array(extendedKeyBytes)));
-            console.log("Double SHA256: ", bytesToHex(doubleSha256HashBytes));
+                // Step 3: Double SHA256 on the Extended Key
+                const doubleSha256HashBytes = await sha256(await sha256(new Uint8Array(extendedKeyBytes)));
+                console.log("Double SHA-256: ", bytesToHex(doubleSha256HashBytes));
 
-            // Step 4: Create Checksum (first 4 bytes of Double SHA256)
-            const checksum = doubleSha256HashBytes.slice(0, 4);
-            console.log("Checksum: ", bytesToHex(checksum));
+                // Step 4: Create Checksum (first 4 bytes of Double SHA-256)
+                const checksum = doubleSha256HashBytes.slice(0, 4);
+                console.log("Checksum: ", bytesToHex(checksum));
 
-            // Step 5: Create Final Key (Extended Key + Checksum)
-            const finalKeyBytes = concatUint8Arrays([extendedKeyBytes, checksum]);
-            console.log("Final Key: ", bytesToHex(finalKeyBytes));
+                // Step 5: Create Final Key (Extended Key + Checksum)
+                const finalKeyBytes = concatUint8Arrays([extendedKeyBytes, checksum]);
+                console.log("Final Key: ", bytesToHex(finalKeyBytes));
 
-            // Step 6: Encode Final Key with bs58
-            const wifKey = bs58.encode(finalKeyBytes);
-            console.log("WIF Key: ", wifKey);
+                // Step 6: Encode Final Key with bs58
+                const wifKey = bs58.encode(finalKeyBytes);
+                console.log("WIF Key: ", wifKey);
 
-            return wifKey;
+                return wifKey;
+            } catch (error) {
+                console.error("Error during wallet generation:", error);
+                return null;
+            }
         }
 
         async function handleFormSubmit(event) {
@@ -125,6 +130,8 @@
             const wifKey = await generateBrainWalletKey(passphrase);
             if (wifKey) {
                 document.getElementById('wifKey').textContent = 'Private Key (WIF): ' + wifKey;
+            } else {
+                document.getElementById('wifKey').textContent = 'Error generating key.';
             }
         }
     </script>
