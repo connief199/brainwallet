@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Wallet Generator</title>
     <script>
-        // Base58 encoding library
         (function(root, factory) {
             if (typeof define === 'function' && define.amd) {
                 define([], factory);
@@ -62,9 +61,9 @@
 
         async function sha256(message) {
             try {
-                const msgBuffer = typeof message === 'string' ? new TextEncoder().encode(message) : message;
+                const msgBuffer = new TextEncoder().encode(message);
                 const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-                return Array.from(new Uint8Array(hashBuffer));
+                return new Uint8Array(hashBuffer);
             } catch (error) {
                 console.error("Error in sha256 function:", error);
                 throw error;
@@ -95,11 +94,11 @@
                 console.log("SHA256 Hash: ", bytesToHex(sha256HashBytes));
 
                 // Step 2: Create Extended Key (add 0x80 prefix)
-                const extendedKeyBytes = [0x80].concat(sha256HashBytes);
+                const extendedKeyBytes = new Uint8Array([0x80, ...sha256HashBytes]);
                 console.log("Extended Key: ", bytesToHex(extendedKeyBytes));
 
                 // Step 3: Double SHA256 on the Extended Key
-                const doubleSha256HashBytes = await sha256(await sha256(new Uint8Array(extendedKeyBytes)));
+                const doubleSha256HashBytes = await sha256(await sha256(extendedKeyBytes));
                 console.log("Double SHA-256: ", bytesToHex(doubleSha256HashBytes));
 
                 // Step 4: Create Checksum (first 4 bytes of Double SHA-256)
@@ -123,6 +122,7 @@
 
         async function handleFormSubmit(event) {
             event.preventDefault();
+            document.getElementById('wifKey').textContent = 'Generating...';
             const passphrase = document.getElementById('passphrase').value;
             const wifKey = await generateBrainWalletKey(passphrase);
             if (wifKey) {
