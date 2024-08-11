@@ -3,130 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Wallet Generator</title>
+    <title>Bitcoin Brain Wallet Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/bs58@4.0.1/index.min.js"></script>
     <script>
-        (function(root, factory) {
-            if (typeof define === 'function' && define.amd) {
-                define([], factory);
-            } else if (typeof exports === 'object') {
-                module.exports = factory();
-            } else {
-                root.bs58 = factory();
-            }
-        }(this, function() {
-            const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-            const ALPHABET_MAP = {};
-            const BASE = ALPHABET.length;
-            const LEADER = ALPHABET.charAt(0);
-
-            for (let i = 0; i < ALPHABET.length; i++) {
-                ALPHABET_MAP[ALPHABET.charAt(i)] = i;
-            }
-
-            function encode(source) {
-                if (source.length === 0) return '';
-
-                let digits = [0];
-                for (let i = 0; i < source.length; i++) {
-                    let carry = source[i];
-                    for (let j = 0; j < digits.length; ++j) {
-                        carry += digits[j] << 8;
-                        digits[j] = carry % BASE;
-                        carry = (carry / BASE) | 0;
-                    }
-
-                    while (carry) {
-                        digits.push(carry % BASE);
-                        carry = (carry / BASE) | 0;
-                    }
-                }
-
-                let string = '';
-
-                for (let i = 0; source[i] === 0 && i < source.length - 1; i++) {
-                    string += LEADER;
-                }
-
-                for (let i = digits.length - 1; i >= 0; i--) {
-                    string += ALPHABET[digits[i]];
-                }
-
-                return string;
-            }
-
-            return {
-                encode: encode
-            };
-        }));
-
         async function sha256(message) {
-            try {
-                const msgBuffer = new TextEncoder().encode(message);
-                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-                return new Uint8Array(hashBuffer);
-            } catch (error) {
-                console.error("Error in sha256 function:", error);
-                throw error;
-            }
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            return new Uint8Array(hashBuffer);
         }
 
         function bytesToHex(bytes) {
-            return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+            return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        function hexToBytes(hex) {
-            const bytes = [];
-            for (let c = 0; c < hex.length; c += 2) {
-                bytes.push(parseInt(hex.substr(c, 2), 16));
-            }
-            return bytes;
-        }
-
-        function concatUint8Arrays(arrays) {
-            let totalLength = arrays.reduce((acc, value) => acc + value.length, 0);
+        function concatUint8Arrays(...arrays) {
+            let totalLength = arrays.reduce((acc, array) => acc + array.length, 0);
             let result = new Uint8Array(totalLength);
-            let length = 0;
+            let offset = 0;
             for (let array of arrays) {
-                result.set(array, length);
-                length += array.length;
+                result.set(array, offset);
+                offset += array.length;
             }
             return result;
         }
 
         async function generateBrainWalletKey(passphrase) {
             try {
-                console.log("Generating Bitcoin Wallet...");
-
                 // Step 1: Generate SHA256 Hash
-                const sha256HashBytes = await sha256(passphrase);
-                console.log("SHA256 Hash: ", bytesToHex(sha256HashBytes));
+                const sha256Hash = await sha256(passphrase);
 
-                // Step 2: Create Extended Key (add 0x80 prefix)
-                const extendedKeyBytes = new Uint8Array([0x80, ...sha256HashBytes]);
-                console.log("Extended Key: ", bytesToHex(extendedKeyBytes));
+                // Step 2: Add 0x80 Prefix to the SHA256 Hash
+                const extendedKey = concatUint8Arrays(new Uint8Array([0x80]), sha256Hash);
 
-                // Step 3: Double SHA256 on the Extended Key
-                const doubleSha256HashBytes = await sha256(await sha256(extendedKeyBytes));
-                console.log("Double SHA-256: ", bytesToHex(doubleSha256HashBytes));
+                // Step 3: Perform Double SHA256 on the Extended Key
+                const doubleSha256 = await sha256(await sha256(extendedKey));
 
-                // Step 4: Create Checksum (first 4 bytes of Double SHA-256)
-                const checksum = doubleSha256HashBytes.slice(0, 4);
-                console.log("Checksum: ", bytesToHex(checksum));
+                // Step 4: Take the first 4 bytes of the second SHA256 as the checksum
+                const checksum = doubleSha256.slice(0, 4);
 
-                // Step 5: Create Final Key (Extended Key + Checksum)
-                const finalKeyBytes = concatUint8Arrays([extendedKeyBytes, checksum]);
-                console.log("Final Key: ", bytesToHex(finalKeyBytes));
+                // Step 5: Append the checksum to the extended key
+                const finalKey = concatUint8Arrays(extendedKey, checksum);
 
-                // Step 6: Encode Final Key with bs58
-                const wifKey = bs58.encode(finalKeyBytes);
-                console.log("WIF Key: ", wifKey);
-
-                // Output all components for verification
-                console.log("WIF Key Complete: ", wifKey);
+                // Step 6: Encode the final key using Base58
+                const wifKey = bs58.encode(finalKey);
 
                 return wifKey;
             } catch (error) {
-                console.error("Error during wallet generation:", error);
+                console.error("Error generating wallet key:", error);
                 return null;
             }
         }
@@ -145,7 +68,7 @@
     </script>
 </head>
 <body>
-    <h1>Bitcoin Wallet Generator</h1>
+    <h1>Bitcoin Brain Wallet Generator</h1>
     <form onsubmit="handleFormSubmit(event)">
         <label for="passphrase">Enter your passphrase:</label>
         <input type="text" id="passphrase" name="passphrase" required>
