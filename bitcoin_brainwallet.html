@@ -60,9 +60,8 @@
             };
         }));
 
-        // Utility functions
         async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
+            const msgBuffer = typeof message === 'string' ? new TextEncoder().encode(message) : message;
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             return Array.from(new Uint8Array(hashBuffer));
         }
@@ -91,35 +90,31 @@
         }
 
         async function generateBrainWalletKey(passphrase) {
-            alert("Generating Bitcoin Wallet...");
+            console.log("Generating Bitcoin Wallet...");
 
             // Step 1: Generate SHA256 Hash
             const sha256HashBytes = await sha256(passphrase);
-            const sha256HashHex = bytesToHex(sha256HashBytes);
-            alert("SHA256 Hash: " + sha256HashHex);
+            console.log("SHA256 Hash: ", bytesToHex(sha256HashBytes));
 
             // Step 2: Create Extended Key (add 0x80 prefix)
-            const extendedKeyHex = '80' + sha256HashHex;
-            const extendedKeyBytes = hexToBytes(extendedKeyHex);
-            alert("Extended Key: " + extendedKeyHex);
+            const extendedKeyBytes = [0x80].concat(sha256HashBytes);
+            console.log("Extended Key: ", bytesToHex(extendedKeyBytes));
 
             // Step 3: Double SHA256 on the Extended Key
-            const doubleSha256HashBytes = await sha256(await sha256(extendedKeyBytes));
-            const doubleSha256HashHex = bytesToHex(doubleSha256HashBytes);
-            alert("Double SHA256: " + doubleSha256HashHex);
+            const doubleSha256HashBytes = await sha256(await sha256(new Uint8Array(extendedKeyBytes)));
+            console.log("Double SHA256: ", bytesToHex(doubleSha256HashBytes));
 
             // Step 4: Create Checksum (first 4 bytes of Double SHA256)
             const checksum = doubleSha256HashBytes.slice(0, 4);
-            const checksumHex = bytesToHex(checksum);
-            alert("Checksum: " + checksumHex);
+            console.log("Checksum: ", bytesToHex(checksum));
 
             // Step 5: Create Final Key (Extended Key + Checksum)
             const finalKeyBytes = concatUint8Arrays([extendedKeyBytes, checksum]);
-            alert("Final Key: " + bytesToHex(finalKeyBytes));
+            console.log("Final Key: ", bytesToHex(finalKeyBytes));
 
             // Step 6: Encode Final Key with bs58
             const wifKey = bs58.encode(finalKeyBytes);
-            alert("WIF Key: " + wifKey);
+            console.log("WIF Key: ", wifKey);
 
             return wifKey;
         }
