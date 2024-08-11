@@ -7,9 +7,14 @@
     <script src="https://cdn.jsdelivr.net/npm/bs58@4.0.1/index.min.js"></script>
     <script>
         async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            return new Uint8Array(hashBuffer);
+            try {
+                const msgBuffer = new TextEncoder().encode(message);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                return new Uint8Array(hashBuffer);
+            } catch (error) {
+                displayMessage("SHA256 Error: " + error, 'error');
+                throw error;
+            }
         }
 
         function bytesToHex(bytes) {
@@ -27,29 +32,44 @@
             return result;
         }
 
+        function displayMessage(message, type = 'info') {
+            const messageElement = document.createElement('p');
+            messageElement.textContent = message;
+            messageElement.style.color = (type === 'error') ? 'red' : 'black';
+            document.getElementById('debugOutput').appendChild(messageElement);
+        }
+
         async function generateBrainWalletKey(passphrase) {
             try {
+                displayMessage("Passphrase: " + passphrase);
+
                 // Step 1: Generate SHA256 Hash
                 const sha256Hash = await sha256(passphrase);
+                displayMessage("SHA256 Hash: " + bytesToHex(sha256Hash));
 
                 // Step 2: Add 0x80 Prefix to the SHA256 Hash
                 const extendedKey = concatUint8Arrays(new Uint8Array([0x80]), sha256Hash);
+                displayMessage("Extended Key (with 0x80): " + bytesToHex(extendedKey));
 
                 // Step 3: Perform Double SHA256 on the Extended Key
                 const doubleSha256 = await sha256(await sha256(extendedKey));
+                displayMessage("Double SHA256 Hash: " + bytesToHex(doubleSha256));
 
                 // Step 4: Take the first 4 bytes of the second SHA256 as the checksum
                 const checksum = doubleSha256.slice(0, 4);
+                displayMessage("Checksum: " + bytesToHex(checksum));
 
                 // Step 5: Append the checksum to the extended key
                 const finalKey = concatUint8Arrays(extendedKey, checksum);
+                displayMessage("Final Key (with Checksum): " + bytesToHex(finalKey));
 
                 // Step 6: Encode the final key using Base58
                 const wifKey = bs58.encode(finalKey);
+                displayMessage("WIF Key: " + wifKey);
 
                 return wifKey;
             } catch (error) {
-                console.error("Error generating wallet key:", error);
+                displayMessage("Error generating wallet key: " + error, 'error');
                 return null;
             }
         }
@@ -57,6 +77,7 @@
         async function handleFormSubmit(event) {
             event.preventDefault();
             document.getElementById('wifKey').textContent = 'Generating...';
+            document.getElementById('debugOutput').innerHTML = '';  // Clear previous debug output
             const passphrase = document.getElementById('passphrase').value;
             const wifKey = await generateBrainWalletKey(passphrase);
             if (wifKey) {
@@ -75,5 +96,6 @@
         <button type="submit">Generate</button>
     </form>
     <p id="wifKey"></p>
+    <div id="debugOutput"></div>
 </body>
 </html>
