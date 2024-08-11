@@ -5,13 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Brain Wallet Generator</title>
     <script>
-        // Embedding the bs58 library directly in the script
+        // Embedded bs58 encoding function
         (function(root) {
             function base58Encode(buffer) {
                 const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+                const alphabetMap = {};
+                for (let i = 0; i < alphabet.length; i++) {
+                    alphabetMap[alphabet[i]] = i;
+                }
+
                 let digits = [0];
                 for (let i = 0; i < buffer.length; i++) {
-                    for (let j = 0, carry = buffer[i]; j < digits.length; j++) {
+                    let carry = buffer[i];
+                    for (let j = 0; j < digits.length; ++j) {
                         carry += digits[j] << 8;
                         digits[j] = carry % 58;
                         carry = (carry / 58) | 0;
@@ -21,6 +27,7 @@
                         carry = (carry / 58) | 0;
                     }
                 }
+
                 let string = '';
                 for (let k = 0; buffer[k] === 0 && k < buffer.length - 1; k++) {
                     string += '1';
