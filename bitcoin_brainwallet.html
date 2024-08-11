@@ -74,6 +74,14 @@
             return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
+        function hexToBytes(hex) {
+            const bytes = [];
+            for (let c = 0; c < hex.length; c += 2) {
+                bytes.push(parseInt(hex.substr(c, 2), 16));
+            }
+            return bytes;
+        }
+
         function concatUint8Arrays(arrays) {
             let totalLength = arrays.reduce((acc, value) => acc + value.length, 0);
             let result = new Uint8Array(totalLength);
@@ -112,6 +120,9 @@
                 // Step 6: Encode Final Key with bs58
                 const wifKey = bs58.encode(finalKeyBytes);
                 console.log("WIF Key: ", wifKey);
+
+                // Output all components for verification
+                console.log("WIF Key Complete: ", wifKey);
 
                 return wifKey;
             } catch (error) {
