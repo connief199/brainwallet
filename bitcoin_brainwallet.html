@@ -5,20 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Brain Wallet Generator</title>
     <script>
-        // Base58 encoding function using a more robust approach
+        // Base58 encoding function
         (function(root) {
             function base58Encode(buffer) {
                 const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
                 const base = BigInt(58);
                 let result = '';
-                let value = BigInt('0x' + buffer.toString('hex'));
+                let value = BigInt('0x' + Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join(''));
 
                 while (value > 0) {
                     const mod = value % base;
-                    result = alphabet[mod] + result;
+                    result = alphabet[Number(mod)] + result;
                     value = value / base;
                 }
 
+                // Handle leading zeros
                 for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
                     result = '1' + result;
                 }
@@ -36,14 +37,6 @@
 
         function bytesToHex(bytes) {
             return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        function hexToBytes(hex) {
-            let bytes = new Uint8Array(hex.length / 2);
-            for (let i = 0; i < hex.length; i += 2) {
-                bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-            }
-            return bytes;
         }
 
         function concatUint8Arrays(...arrays) {
