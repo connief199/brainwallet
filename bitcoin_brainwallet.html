@@ -86,7 +86,7 @@
             let num = BigInt('0x' + hex);
             let result = '';
 
-            // Handle leading zeros in the hex string
+            // Handle leading zeros by checking the original hex string
             while (hex.startsWith('00')) {
                 result += '1';
                 hex = hex.substring(2);
