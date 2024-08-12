@@ -37,7 +37,7 @@
 
             // Generate private key (SHA-256 hash of the passphrase)
             const privateKeyHex = CryptoJS.SHA256(passphrase).toString();
-            
+
             // Convert private key to WIF format
             const privateKeyWIF = toWIF(privateKeyHex);
 
@@ -86,7 +86,7 @@
             let num = BigInt('0x' + hex);
             let result = '';
 
-            // Handle leading zeros by checking the original hex string
+            // Ensure leading zeros in the hex are correctly represented as '1' in Base58
             while (hex.startsWith('00')) {
                 result += '1';
                 hex = hex.substring(2);
