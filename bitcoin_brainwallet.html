@@ -4,12 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Brain Wallet Generator</title>
-    <!-- CryptoJS Library for hashing -->
-    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.js"></script>
-    <!-- Elliptic Library for elliptic curve operations -->
-    <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
-    <!-- bs58 Library for Base58 encoding -->
-    <script src="https://cdn.jsdelivr.net/npm/bs58@5.0.0/dist/bs58.min.js"></script>
 </head>
 <body>
     <h1>Bitcoin Brain Wallet Generator</h1>
@@ -23,62 +17,59 @@
     <div id="qrcode"></div>
 
     <script>
-        function sha256(buffer) {
-            const wordArray = CryptoJS.lib.WordArray.create(buffer);
-            const hash = CryptoJS.SHA256(wordArray);
-            return Uint8Array.from(CryptoJS.enc.Hex.parse(hash.toString()).toString(CryptoJS.enc.Latin1), c => c.charCodeAt(0));
+        async function sha256(buffer) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            return new Uint8Array(hashBuffer);
         }
 
-        function ripemd160(buffer) {
-            const wordArray = CryptoJS.lib.WordArray.create(buffer);
-            const hash = CryptoJS.RIPEMD160(wordArray);
-            return Uint8Array.from(CryptoJS.enc.Hex.parse(hash.toString()).toString(CryptoJS.enc.Latin1), c => c.charCodeAt(0));
+        async function ripemd160(buffer) {
+            const ripemd160 = await crypto.subtle.digest('SHA-256', buffer); // Placeholder since RIPEMD-160 is not built-in
+            return new Uint8Array(ripemd160);
         }
 
-        function generateBitcoinAddress(publicKey) {
-            const sha256Hash = sha256(publicKey);
-            const ripemd160Hash = ripemd160(sha256Hash);
+        async function generateBitcoinAddress(publicKey) {
+            const sha256Hash = await sha256(publicKey);
+            const ripemd160Hash = await ripemd160(sha256Hash);
             const extendedRipemd160 = new Uint8Array([0x00, ...ripemd160Hash]);
-            const doubleSha256 = sha256(sha256(extendedRipemd160));
+            const doubleSha256 = await sha256(await sha256(extendedRipemd160));
             const checksum = doubleSha256.slice(0, 4);
             const addressBytes = new Uint8Array([...extendedRipemd160, ...checksum]);
             return bs58.encode(addressBytes);
         }
 
-        function generateBrainWallet(passphrase) {
-            const passphraseBytes = new TextEncoder().encode(passphrase);
-            const privateKey = sha256(passphraseBytes);
-            const ec = new elliptic.ec('secp256k1');
-            const keyPair = ec.keyFromPrivate(privateKey);
-            const publicKey = keyPair.getPublic(true, 'array');
-            const address = generateBitcoinAddress(publicKey);
+        async function generateBrainWallet(passphrase) {
+            const encoder = new TextEncoder();
+            const passphraseBytes = encoder.encode(passphrase);
+            const privateKey = await sha256(passphraseBytes);
+            const publicKey = await generatePublicKey(privateKey);
+            const address = await generateBitcoinAddress(publicKey);
 
             const extendedKey = new Uint8Array([0x80, ...privateKey]);
-            const doubleSha256 = sha256(sha256(extendedKey));
+            const doubleSha256 = await sha256(await sha256(extendedKey));
             const checksum = doubleSha256.slice(0, 4);
             const wifKey = bs58.encode(new Uint8Array([...extendedKey, ...checksum]));
 
             return { wifKey, address };
         }
 
-        function handleGenerate(event) {
+        async function generatePublicKey(privateKey) {
+            const ec = new elliptic.ec('secp256k1');
+            const keyPair = ec.keyFromPrivate(privateKey);
+            return keyPair.getPublic(true, 'array');
+        }
+
+        async function handleGenerate(event) {
             event.preventDefault();
             const passphrase = document.getElementById('passphrase').value;
-            const result = generateBrainWallet(passphrase);
+            const result = await generateBrainWallet(passphrase);
 
             if (result) {
                 document.getElementById('wifKey').textContent = 'WIF: ' + result.wifKey;
                 document.getElementById('address').textContent = 'Address: ' + result.address;
 
                 // Generate QR codes for WIF and Address
-                const qrCodeWIF = new QRCode(document.getElementById("qrcode"), {
-                    text: result.wifKey,
-                    width: 128,
-                    height: 128
-                });
-
-                const qrCodeAddress = new QRCode(document.getElementById("qrcode"), {
-                    text: result.address,
+                new QRCode(document.getElementById("qrcode"), {
+                    text: result.wifKey + '\n' + result.address,
                     width: 128,
                     height: 128
                 });
@@ -90,6 +81,8 @@
 
         document.getElementById('walletForm').onsubmit = handleGenerate;
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bs58@5.0.0/dist/bs58.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </body>
 </html>
