@@ -3,86 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Brain Wallet Generator</title>
+    <title>Bitcoin Address Generator</title>
 </head>
 <body>
-    <h1>Bitcoin Brain Wallet Generator</h1>
-    <form id="walletForm">
-        <label for="passphrase">Passphrase:</label>
-        <input type="text" id="passphrase" name="passphrase" required>
-        <button type="submit">Generate</button>
-    </form>
-    <p id="wifKey"></p>
-    <p id="address"></p>
-    <div id="qrcode"></div>
+    <h1>Bitcoin Address Generator</h1>
+    <p>Enter a passphrase to generate a Bitcoin private key and address:</p>
+    <input type="text" id="passphrase" placeholder="Enter passphrase" style="width: 300px;">
+    <button onclick="generateBitcoinAddress()">Generate</button>
+
+    <h2>Results:</h2>
+    <p><strong>Private Key:</strong> <span id="privateKey"></span></p>
+    <p><strong>Bitcoin Address:</strong> <span id="bitcoinAddress"></span></p>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
 
     <script>
-        async function sha256(buffer) {
-            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-            return new Uint8Array(hashBuffer);
-        }
-
-        async function ripemd160(buffer) {
-            const ripemd160 = await crypto.subtle.digest('SHA-256', buffer); // Placeholder since RIPEMD-160 is not built-in
-            return new Uint8Array(ripemd160);
-        }
-
-        async function generateBitcoinAddress(publicKey) {
-            const sha256Hash = await sha256(publicKey);
-            const ripemd160Hash = await ripemd160(sha256Hash);
-            const extendedRipemd160 = new Uint8Array([0x00, ...ripemd160Hash]);
-            const doubleSha256 = await sha256(await sha256(extendedRipemd160));
-            const checksum = doubleSha256.slice(0, 4);
-            const addressBytes = new Uint8Array([...extendedRipemd160, ...checksum]);
-            return bs58.encode(addressBytes);
-        }
-
-        async function generateBrainWallet(passphrase) {
-            const encoder = new TextEncoder();
-            const passphraseBytes = encoder.encode(passphrase);
-            const privateKey = await sha256(passphraseBytes);
-            const publicKey = await generatePublicKey(privateKey);
-            const address = await generateBitcoinAddress(publicKey);
-
-            const extendedKey = new Uint8Array([0x80, ...privateKey]);
-            const doubleSha256 = await sha256(await sha256(extendedKey));
-            const checksum = doubleSha256.slice(0, 4);
-            const wifKey = bs58.encode(new Uint8Array([...extendedKey, ...checksum]));
-
-            return { wifKey, address };
-        }
-
-        async function generatePublicKey(privateKey) {
-            const ec = new elliptic.ec('secp256k1');
-            const keyPair = ec.keyFromPrivate(privateKey);
-            return keyPair.getPublic(true, 'array');
-        }
-
-        async function handleGenerate(event) {
-            event.preventDefault();
+        function generateBitcoinAddress() {
             const passphrase = document.getElementById('passphrase').value;
-            const result = await generateBrainWallet(passphrase);
 
-            if (result) {
-                document.getElementById('wifKey').textContent = 'WIF: ' + result.wifKey;
-                document.getElementById('address').textContent = 'Address: ' + result.address;
+            // Hash the passphrase to create a private key
+            const privateKey = CryptoJS.SHA256(passphrase).toString();
 
-                // Generate QR codes for WIF and Address
-                new QRCode(document.getElementById("qrcode"), {
-                    text: result.wifKey + '\n' + result.address,
-                    width: 128,
-                    height: 128
-                });
-            } else {
-                document.getElementById('wifKey').textContent = 'Error generating key.';
-                document.getElementById('address').textContent = '';
-            }
+            // Initialize elliptic curve
+            const EC = elliptic.ec;
+            const ec = new EC('secp256k1');
+
+            // Generate the public key from the private key
+            const keyPair = ec.keyFromPrivate(privateKey);
+            const publicKey = keyPair.getPublic().encode('hex');
+
+            // Perform SHA-256 and RIPEMD-160 hashing on the public key
+            const publicKeyHash = CryptoJS.RIPEMD160(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(publicKey))).toString();
+
+            // Add version byte (0x00 for mainnet) in front of the public key hash
+            const versionedPayload = "00" + publicKeyHash;
+
+            // Perform double SHA-256 hashing on the versioned payload
+            const checksum = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(versionedPayload))).toString().substr(0, 8);
+
+            // Add the 4 checksum bytes at the end of the versioned payload
+            const binaryAddress = versionedPayload + checksum;
+
+            // Convert the binary address to Base58Check encoding
+            const bitcoinAddress = toBase58Check(binaryAddress);
+
+            // Display the results
+            document.getElementById('privateKey').textContent = privateKey;
+            document.getElementById('bitcoinAddress').textContent = bitcoinAddress;
         }
 
-        document.getElementById('walletForm').onsubmit = handleGenerate;
+        function toBase58Check(hex) {
+            const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+            const buffer = Buffer.from(hex, 'hex');
+
+            let num = BigInt('0x' + buffer.toString('hex'));
+            let encoded = '';
+            while (num > 0) {
+                const remainder = num % 58n;
+                num = num / 58n;
+                encoded = alphabet[remainder] + encoded;
+            }
+
+            // Leading zeroes
+            for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
+                encoded = '1' + encoded;
+            }
+
+            return encoded;
+        }
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bs58@5.0.0/dist/bs58.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </body>
 </html>
