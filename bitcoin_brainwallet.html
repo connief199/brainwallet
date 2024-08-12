@@ -3,37 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Bitcoin Generator</title>
+    <title>Bitcoin Address Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .output { margin-top: 20px; }
+        canvas { margin-top: 10px; }
+    </style>
 </head>
 <body>
     <h1>Bitcoin Address Generator</h1>
     <label for="passphrase">Enter your passphrase:</label>
     <input type="text" id="passphrase" size="50">
-    <button id="generateBtn">Generate</button>
+    <button onclick="generateBitcoinAddress()">Generate</button>
 
     <div class="output">
         <h3>Private Key (Hex):</h3>
         <p id="privateKeyHex"></p>
+
+        <h3>Private Key (WIF):</h3>
+        <p id="privateKeyWIF"></p>
+        <canvas id="qrcodePrivateKeyWIF"></canvas>
+
+        <h3>Bitcoin Address:</h3>
+        <p id="bitcoinAddress"></p>
+        <canvas id="qrcodeAddress"></canvas>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <script>
-        document.getElementById('generateBtn').onclick = function() {
+        function generateBitcoinAddress() {
             const passphrase = document.getElementById('passphrase').value;
-            if (passphrase) {
-                const privateKeyHex = passphraseToHex(passphrase);
-                document.getElementById('privateKeyHex').innerText = privateKeyHex;
-            } else {
-                alert("Please enter a passphrase.");
-            }
-        };
+            const privateKeyHex = CryptoJS.SHA256(passphrase).toString();
+            const privateKeyWIF = toWIF(privateKeyHex);
+            const publicKey = generatePublicKey(privateKeyHex);
+            const bitcoinAddress = generateBitcoinAddressFromPublicKey(publicKey);
 
-        function passphraseToHex(passphrase) {
-            // This is a simple function to simulate private key generation
-            let hex = '';
-            for (let i = 0; i < passphrase.length; i++) {
-                hex += passphrase.charCodeAt(i).toString(16);
+            document.getElementById('privateKeyHex').textContent = privateKeyHex;
+            document.getElementById('privateKeyWIF').textContent = privateKeyWIF;
+            document.getElementById('bitcoinAddress').textContent = bitcoinAddress;
+
+            generateQRCode(privateKeyWIF, 'qrcodePrivateKeyWIF');
+            generateQRCode(bitcoinAddress, 'qrcodeAddress');
+        }
+
+        function toWIF(privateKeyHex) {
+            const version = '80'; // 0x80 for mainnet
+            const checksum = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(version + privateKeyHex))).toString();
+            const result = version + privateKeyHex + checksum.substring(0, 8);
+            return base58Encode(result);
+        }
+
+        function generatePublicKey(privateKeyHex) {
+            // Placeholder function - in a real application, this would use elliptic curve cryptography
+            return privateKeyHex.substring(0, 66); // Simplified for demonstration purposes
+        }
+
+        function generateBitcoinAddressFromPublicKey(publicKey) {
+            const sha256 = CryptoJS.SHA256(CryptoJS.enc.Hex.parse(publicKey)).toString();
+            const ripemd160 = CryptoJS.RIPEMD160(CryptoJS.enc.Hex.parse(sha256)).toString();
+            const version = '00'; // 0x00 for mainnet
+            const checksum = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(version + ripemd160))).toString();
+            const result = version + ripemd160 + checksum.substring(0, 8);
+            return base58Encode(result);
+        }
+
+        function base58Encode(hex) {
+            const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+            let num = BigInt('0x' + hex);
+            let result = '';
+            while (num > 0) {
+                const remainder = num % 58n;
+                num = num / 58n;
+                result = alphabet[remainder] + result;
             }
-            return hex;
+            return result;
+        }
+
+        function generateQRCode(text, elementId) {
+            const qr = new QRious({
+                element: document.getElementById(elementId),
+                value: text,
+                size: 200,
+                level: 'H'
+            });
         }
     </script>
 </body>
