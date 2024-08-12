@@ -17,61 +17,59 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
 
     <script>
         function generateBitcoinAddress() {
             const passphrase = document.getElementById('passphrase').value;
 
-            // Hash the passphrase to create a private key
+            // Generate private key from passphrase using SHA-256
             const privateKey = CryptoJS.SHA256(passphrase).toString();
 
             // Initialize elliptic curve
             const EC = elliptic.ec;
             const ec = new EC('secp256k1');
 
-            // Generate the public key from the private key
+            // Generate key pair from private key
             const keyPair = ec.keyFromPrivate(privateKey);
             const publicKey = keyPair.getPublic().encode('hex');
 
-            // Perform SHA-256 and RIPEMD-160 hashing on the public key
+            // Perform SHA-256 and then RIPEMD-160 on the public key
             const publicKeyHash = CryptoJS.RIPEMD160(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(publicKey))).toString();
 
-            // Add version byte (0x00 for mainnet) in front of the public key hash
+            // Add version byte in front of public key hash (0x00 for mainnet)
             const versionedPayload = "00" + publicKeyHash;
 
-            // Perform double SHA-256 hashing on the versioned payload
+            // Double SHA-256 on the versioned payload
             const checksum = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(versionedPayload))).toString().substr(0, 8);
 
-            // Add the 4 checksum bytes at the end of the versioned payload
+            // Append checksum to the versioned payload
             const binaryAddress = versionedPayload + checksum;
 
-            // Convert the binary address to Base58Check encoding
+            // Convert to Base58Check encoding
             const bitcoinAddress = toBase58Check(binaryAddress);
 
-            // Display the results
+            // Display results
             document.getElementById('privateKey').textContent = privateKey;
             document.getElementById('bitcoinAddress').textContent = bitcoinAddress;
         }
 
         function toBase58Check(hex) {
             const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-            const buffer = Buffer.from(hex, 'hex');
+            let num = BigInt("0x" + hex);
+            let base58 = '';
 
-            let num = BigInt('0x' + buffer.toString('hex'));
-            let encoded = '';
             while (num > 0) {
-                const remainder = num % 58n;
+                const mod = num % 58n;
+                base58 = alphabet[mod] + base58;
                 num = num / 58n;
-                encoded = alphabet[remainder] + encoded;
             }
 
-            // Leading zeroes
-            for (let i = 0; i < buffer.length && buffer[i] === 0; i++) {
-                encoded = '1' + encoded;
+            // Leading zeroes (encoded as '1')
+            for (let i = 0; i < hex.length && hex[i] === '0'; i += 2) {
+                base58 = '1' + base58;
             }
 
-            return encoded;
+            return base58;
         }
     </script>
 </body>
