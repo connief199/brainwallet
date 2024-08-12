@@ -34,9 +34,17 @@
     <script>
         function generateBitcoinAddress() {
             const passphrase = document.getElementById('passphrase').value;
+
+            // Generate private key (SHA-256 hash of the passphrase)
             const privateKeyHex = CryptoJS.SHA256(passphrase).toString();
+            
+            // Convert private key to WIF format
             const privateKeyWIF = toWIF(privateKeyHex);
+
+            // Generate public key (using elliptic curve)
             const publicKey = generatePublicKey(privateKeyHex);
+
+            // Generate Bitcoin address from the public key
             const bitcoinAddress = generateBitcoinAddressFromPublicKey(publicKey);
 
             document.getElementById('privateKeyHex').textContent = privateKeyHex;
@@ -49,22 +57,27 @@
 
         function toWIF(privateKeyHex) {
             const version = '80'; // 0x80 for mainnet
-            const checksum = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(version + privateKeyHex))).toString();
-            const result = version + privateKeyHex + checksum.substring(0, 8);
+            const versionedPayload = version + privateKeyHex;
+            const checksum = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(versionedPayload))).toString();
+            const result = versionedPayload + checksum.substring(0, 8);
             return base58Encode(result);
         }
 
         function generatePublicKey(privateKeyHex) {
-            // Placeholder function - in a real application, this would use elliptic curve cryptography
-            return privateKeyHex.substring(0, 66); // Simplified for demonstration purposes
+            // Generate the public key using elliptic curve multiplication
+            const ec = new elliptic.ec('secp256k1');
+            const keyPair = ec.keyFromPrivate(privateKeyHex);
+            const publicKey = keyPair.getPublic('hex');
+            return publicKey;
         }
 
         function generateBitcoinAddressFromPublicKey(publicKey) {
             const sha256 = CryptoJS.SHA256(CryptoJS.enc.Hex.parse(publicKey)).toString();
             const ripemd160 = CryptoJS.RIPEMD160(CryptoJS.enc.Hex.parse(sha256)).toString();
             const version = '00'; // 0x00 for mainnet
-            const checksum = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(version + ripemd160))).toString();
-            const result = version + ripemd160 + checksum.substring(0, 8);
+            const versionedPayload = version + ripemd160;
+            const checksum = CryptoJS.SHA256(CryptoJS.SHA256(CryptoJS.enc.Hex.parse(versionedPayload))).toString();
+            const result = versionedPayload + checksum.substring(0, 8);
             return base58Encode(result);
         }
 
@@ -89,5 +102,6 @@
             });
         }
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
 </body>
 </html>
