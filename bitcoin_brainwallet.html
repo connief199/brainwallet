@@ -85,6 +85,13 @@
             const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
             let num = BigInt('0x' + hex);
             let result = '';
+            
+            // Encode leading zeros as '1'
+            while (hex.startsWith('00')) {
+                result += '1';
+                hex = hex.substring(2);
+            }
+
             while (num > 0) {
                 const remainder = num % 58n;
                 num = num / 58n;
