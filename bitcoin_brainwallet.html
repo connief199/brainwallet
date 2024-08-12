@@ -3,12 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Address Generator</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .output { margin-top: 20px; }
-        canvas { margin-top: 10px; }
-    </style>
+    <title>Test Bitcoin Generator</title>
 </head>
 <body>
     <h1>Bitcoin Address Generator</h1>
@@ -19,99 +14,27 @@
     <div class="output">
         <h3>Private Key (Hex):</h3>
         <p id="privateKeyHex"></p>
-
-        <h3>Private Key (WIF):</h3>
-        <p id="privateKeyWIF"></p>
-        <canvas id="qrcodePrivateKeyWIF"></canvas>
-
-        <h3>Bitcoin Address:</h3>
-        <p id="bitcoinAddress"></p>
-        <canvas id="qrcodeAddress"></canvas>
     </div>
 
     <script>
-        // Basic SHA-256 function using SubtleCrypto
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        function toBase58(hex) {
-            const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-            let num = BigInt('0x' + hex);
-            let result = '';
-            while (num > 0) {
-                const remainder = num % 58n;
-                result = alphabet[remainder] + result;
-                num /= 58n;
-            }
-            return result;
-        }
-
-        async function generateBitcoinAddress() {
+        document.getElementById('generateBtn').onclick = function() {
             const passphrase = document.getElementById('passphrase').value;
-            const privateKeyHex = await sha256(passphrase);
-            const privateKeyWIF = toBase58('80' + privateKeyHex); // Simplified WIF format
-            const bitcoinAddress = toBase58('00' + privateKeyHex.slice(0, 40)); // Simplified Bitcoin address
-
-            document.getElementById('privateKeyHex').textContent = privateKeyHex;
-            document.getElementById('privateKeyWIF').textContent = privateKeyWIF;
-            document.getElementById('bitcoinAddress').textContent = bitcoinAddress;
-
-            generateQRCode(privateKeyWIF, 'qrcodePrivateKeyWIF');
-            generateQRCode(bitcoinAddress, 'qrcodeAddress');
-        }
-
-        function generateQRCode(text, elementId) {
-            const qrCanvas = document.getElementById(elementId);
-            const qr = new QRious({
-                element: qrCanvas,
-                value: text,
-                size: 200,
-                level: 'H'
-            });
-        }
-
-        document.getElementById('generateBtn').addEventListener('click', generateBitcoinAddress);
-
-        // Simple QR code generator
-        !function(qr){
-            function QRious(options) {
-                this.value = options.value || '';
-                this.size = options.size || 100;
-                this.level = options.level || 'L';
-                this.element = options.element;
-                this.render();
+            if (passphrase) {
+                const privateKeyHex = passphraseToHex(passphrase);
+                document.getElementById('privateKeyHex').innerText = privateKeyHex;
+            } else {
+                alert("Please enter a passphrase.");
             }
+        };
 
-            QRious.prototype.render = function() {
-                var qr = new qr(this.size, this.level);
-                qr.addData(this.value);
-                qr.make();
-
-                var context = this.element.getContext('2d');
-                context.clearRect(0, 0, this.size, this.size);
-
-                var moduleSize = this.size / qr.getModuleCount();
-                for (var row = 0; row < qr.getModuleCount(); row++) {
-                    for (var col = 0; col < qr.getModuleCount(); col++) {
-                        context.fillStyle = qr.isDark(row, col) ? '#000' : '#fff';
-                        context.fillRect(col * moduleSize, row * moduleSize, moduleSize, moduleSize);
-                    }
-                }
-            };
-
-            window.QRious = QRious;
-        }(function(size, level) {
-            var qr = {};
-            qr.addData = function(data) {};
-            qr.make = function() {};
-            qr.getModuleCount = function() { return 21; };
-            qr.isDark = function(row, col) { return Math.random() > 0.5; };
-            return qr;
-        });
-
+        function passphraseToHex(passphrase) {
+            // This is a simple function to simulate private key generation
+            let hex = '';
+            for (let i = 0; i < passphrase.length; i++) {
+                hex += passphrase.charCodeAt(i).toString(16);
+            }
+            return hex;
+        }
     </script>
 </body>
 </html>
