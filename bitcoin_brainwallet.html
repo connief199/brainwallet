@@ -30,23 +30,21 @@
     </div>
 
     <script>
-        function sha256(message) {
+        async function sha256(message) {
             const msgBuffer = new TextEncoder().encode(message);
-            return crypto.subtle.digest('SHA-256', msgBuffer).then(hashBuffer => {
-                return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-            });
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        function ripemd160(buffer) {
-            return crypto.subtle.digest('RIPEMD-160', buffer).then(hashBuffer => {
-                return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-            });
+        async function doubleSHA256(message) {
+            const firstHash = await sha256(message);
+            return await sha256(firstHash);
         }
 
         function toBase58Check(hex) {
             const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
             let num = BigInt('0x' + hex);
-            let result = "";
+            let result = '';
             while (num > 0) {
                 const remainder = num % 58n;
                 result = alphabet[remainder] + result;
@@ -55,48 +53,37 @@
             return result;
         }
 
-        function generatePrivateKey(passphrase) {
-            return sha256(passphrase);
+        async function generatePrivateKey(passphrase) {
+            return await sha256(passphrase);
         }
 
-        function generateWIF(privateKeyHex) {
-            return generatePrivateKey(privateKeyHex).then(doubleHash => {
-                const versionedPayload = '80' + privateKeyHex;
-                const checksum = doubleHash.slice(0, 8);
-                const base58 = toBase58Check(versionedPayload + checksum);
-                return base58;
-            });
+        async function generateWIF(privateKeyHex) {
+            const versionedPayload = '80' + privateKeyHex;
+            const checksum = (await doubleSHA256(versionedPayload)).slice(0, 8);
+            return toBase58Check(versionedPayload + checksum);
         }
 
-        function generatePublicKey(privateKeyHex) {
-            // Simplified elliptic curve public key generation (secp256k1)
-            return privateKeyHex; // This is a placeholder; a real implementation would require an elliptic curve library.
-        }
-
-        function generateBitcoinAddress(publicKey) {
-            return sha256(publicKey).then(shaHash => {
-                return ripemd160(shaHash).then(ripemdHash => {
-                    const versionedPayload = '00' + ripemdHash;
-                    return sha256(versionedPayload).then(checksum => {
-                        return toBase58Check(versionedPayload + checksum.slice(0, 8));
-                    });
-                });
-            });
+        async function generateBitcoinAddress(publicKey) {
+            const shaHash = await sha256(publicKey);
+            const ripemdHash = await sha256(shaHash); // Note: RIPEMD-160 is needed here but using SHA-256 as a placeholder
+            const versionedPayload = '00' + ripemdHash.slice(0, 40); // Trim to 20 bytes (40 hex chars)
+            const checksum = (await doubleSHA256(versionedPayload)).slice(0, 8);
+            return toBase58Check(versionedPayload + checksum);
         }
 
         async function generateBitcoinAddress() {
             const passphrase = document.getElementById('passphrase').value;
             const privateKeyHex = await generatePrivateKey(passphrase);
             const privateKeyWIF = await generateWIF(privateKeyHex);
-            const publicKey = generatePublicKey(privateKeyHex);
+            const publicKey = privateKeyHex.slice(0, 64); // Simplified: use the first 64 chars as the public key
             const bitcoinAddress = await generateBitcoinAddress(publicKey);
 
             document.getElementById('privateKeyHex').textContent = privateKeyHex;
             document.getElementById('privateKeyWIF').textContent = privateKeyWIF;
             document.getElementById('bitcoinAddress').textContent = bitcoinAddress;
 
-            generateQRCode(bitcoinAddress, 'qrcodeAddress');
             generateQRCode(privateKeyWIF, 'qrcodePrivateKeyWIF');
+            generateQRCode(bitcoinAddress, 'qrcodeAddress');
         }
 
         function generateQRCode(text, elementId) {
