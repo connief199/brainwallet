@@ -4,9 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Brain Wallet Generator</title>
+    <!-- CryptoJS Library for hashing -->
     <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.js"></script>
+    <!-- Elliptic Library for elliptic curve operations -->
     <script src="https://cdn.jsdelivr.net/npm/elliptic@6.5.4/dist/elliptic.min.js"></script>
+    <!-- bs58 Library for Base58 encoding -->
     <script src="https://cdn.jsdelivr.net/npm/bs58@5.0.0/dist/bs58.min.js"></script>
+</head>
+<body>
+    <h1>Bitcoin Brain Wallet Generator</h1>
+    <form id="walletForm">
+        <label for="passphrase">Passphrase:</label>
+        <input type="text" id="passphrase" name="passphrase" required>
+        <button type="submit">Generate</button>
+    </form>
+    <p id="wifKey"></p>
+    <p id="address"></p>
+    <div id="qrcode"></div>
+
     <script>
         function sha256(buffer) {
             const wordArray = CryptoJS.lib.WordArray.create(buffer);
@@ -54,21 +69,27 @@
             if (result) {
                 document.getElementById('wifKey').textContent = 'WIF: ' + result.wifKey;
                 document.getElementById('address').textContent = 'Address: ' + result.address;
+
+                // Generate QR codes for WIF and Address
+                const qrCodeWIF = new QRCode(document.getElementById("qrcode"), {
+                    text: result.wifKey,
+                    width: 128,
+                    height: 128
+                });
+
+                const qrCodeAddress = new QRCode(document.getElementById("qrcode"), {
+                    text: result.address,
+                    width: 128,
+                    height: 128
+                });
             } else {
                 document.getElementById('wifKey').textContent = 'Error generating key.';
                 document.getElementById('address').textContent = '';
             }
         }
+
+        document.getElementById('walletForm').onsubmit = handleGenerate;
     </script>
-</head>
-<body>
-    <h1>Bitcoin Brain Wallet Generator</h1>
-    <form onsubmit="handleGenerate(event)">
-        <label for="passphrase">Passphrase:</label>
-        <input type="text" id="passphrase" name="passphrase" required>
-        <button type="submit">Generate</button>
-    </form>
-    <p id="wifKey"></p>
-    <p id="address"></p>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </body>
 </html>
