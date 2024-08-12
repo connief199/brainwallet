@@ -87,9 +87,10 @@
             let result = '';
 
             // Ensure leading zeros in the hex are correctly represented as '1' in Base58
-            while (hex.startsWith('00')) {
-                result += '1';
-                hex = hex.substring(2);
+            const leadingZeros = hex.match(/^00+/);
+            if (leadingZeros) {
+                result = '1'.repeat(leadingZeros[0].length / 2);
+                hex = hex.substring(leadingZeros[0].length);
             }
 
             while (num > 0) {
