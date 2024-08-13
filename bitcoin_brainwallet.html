@@ -86,7 +86,7 @@
             let num = BigInt('0x' + hex);
             let result = '';
 
-            // Handle leading zeros by adding '1' to the result for each leading 00 byte in the hex
+            // Ensure leading zeros in the hex are correctly represented as '1' in Base58
             while (hex.startsWith('00')) {
                 result += '1';
                 hex = hex.substring(2);
