@@ -86,16 +86,16 @@
             let num = BigInt('0x' + hex);
             let result = '';
 
-            // Ensure leading zeros in the hex are correctly represented as '1' in Base58
-            while (hex.startsWith('00')) {
-                result += '1';
-                hex = hex.substring(2);
-            }
-
+            // Process leading zeros correctly
             while (num > 0) {
                 const remainder = num % 58n;
                 num = num / 58n;
                 result = alphabet[remainder] + result;
+            }
+
+            // Add leading 1s for each leading 00 byte in the original hex string
+            for (let i = 0; i < hex.length && hex.substr(i, 2) === '00'; i += 2) {
+                result = '1' + result;
             }
 
             return result;
